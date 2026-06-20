@@ -30,8 +30,14 @@ def get_main_menu():
         [InlineKeyboardButton("🏦 أوامر البنك", callback_data="bank_cmd")]
     ])
 
-@bot.on_message(filters.command(["start", "الاوامر"]))
+# أمر الـ start بدون أزرار
+@bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
+    await message.reply_text("👑 أهلاً بك! أنا بوت حماية المجموعات الخاص بك.\n\nقم بإضافتي لمجموعتك وارفعني مشرفاً لتفعيل الحماية.\nاكتب 'الاوامر' لعرض قائمة التحكم.")
+
+# أمر الاوامر بالأزرار
+@bot.on_message(filters.command("الاوامر"))
+async def show_menu(client, message: Message):
     text = "مرحباً بك في قائمة الأوامر\n\nاختر من الأزرار أدناه:"
     await message.reply_text(text, reply_markup=get_main_menu())
 
