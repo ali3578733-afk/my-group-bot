@@ -10,25 +10,25 @@ bot = Client("my_group_bot",
 
 ADMINS = [218073323] 
 
-# --- 1. الحماية (حذف الوسائط المخالفة) ---
+# --- الحماية (حذف الوسائط المخالفة) ---
 @bot.on_message(filters.group & (filters.sticker | filters.animation))
 async def anti_media(client, message):
     await message.delete()
 
-# --- 2. الترحيب التلقائي ---
+# --- الترحيب التلقائي ---
 @bot.on_message(filters.group & filters.new_chat_members)
 async def welcome(client, message):
     for member in message.new_chat_members:
         await message.reply_text(f"أهلاً بك {member.mention} في مجموعتنا! نرجو الالتزام بالقوانين. 🌸")
 
-# --- 3. أمر معلومات العضو (للتفاعل) ---
+# --- أمر معلومات العضو (للتفاعل) ---
 @bot.on_message(filters.command("info") & filters.reply)
 async def get_info(client, message):
     user = message.reply_to_message.from_user
     info = f"👤 المعلومات:\nالاسم: {user.first_name}\nالآيدي: `{user.id}`\nالمعرف: @{user.username}"
     await message.reply_text(info)
 
-# --- 4. أمر الحظر (للمدير) ---
+# --- أمر الحظر (للمدير) ---
 @bot.on_message(filters.command("ban") & filters.reply & filters.user(ADMINS))
 async def ban_user(client, message):
     user_id = message.reply_to_message.from_user.id
