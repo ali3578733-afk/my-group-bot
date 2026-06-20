@@ -1,76 +1,46 @@
-from pyrogram import Client, filters
-from pyrogram.types import Message
-from pyrogram.enums import ChatPermissions
+from telethon import TelegramClient, events
+import asyncio
 
-API_ID = 12345678
-API_HASH = "YOUR_API_HASH"
-BOT_TOKEN = "YOUR_BOT_TOKEN"
+# تأكد من وضع بياناتك هنا
+api_id = 1234567 
+api_hash = 'YOUR_API_HASH'
+bot_token = 'YOUR_BOT_TOKEN'
 
-bot = Client(
-    "guard_bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN
-)
+client = TelegramClient('bot_session', api_id, api_hash).start(bot_token=bot_token)
 
-ADMINS = [123456789]
-warnings = {}
+# الذاكرة (سوف تفرغ عند إعادة التشغيل)
+protection_status = {}
 
-# ترحيب
-@bot.on_message(filters.new_chat_members)
-async def welcome(client, message):
-    for user in message.new_chat_members:
-        await message.reply_text(
-            f"🌹 أهلاً بك {user.mention} في المجموعة"
-        )
-
-# حذف الوسائط (تم التعديل ليشمل أنواعاً إضافية)
-@bot.on_message(filters.group & (filters.sticker | filters.animation | filters.video | filters.document | filters.audio | filters.voice))
-async def anti_media(client, message):
-    try:
-        await message.delete()
-    except:
-        pass
-
-# منع الروابط
-@bot.on_message(filters.group & filters.text)
-async def anti_links(client, message):
-    if not message.from_user:
+@client.on(events.NewMessage(pattern='^(قفل الملصقات|فتح الملصقات)$'))
+async def toggle_protection(event):
+    if not event.is_group:
         return
 
-    text = message.text.lower()
-    links = ["http://", "https://", "t.me/", "telegram.me/", ".com", ".net"]
+    # التحقق من صلاحيات المرسل (Admin)
+    sender = await event.get_sender()
+    perms = await event.client.get_permissions(event.chat_id, sender.id)
+    
+    if not (perms.is_admin or perms.is_creator):
+        return # يتجاهل الأمر إذا لم يكن مشرفاً
 
-    if any(link in text for link in links):
-        try:
-            member = await message.chat.get_member(message.from_user.id)
-            if str(member.status) in ["ChatMemberStatus.OWNER", "ChatMemberStatus.ADMINISTRATOR"]:
-                return
+    if 'قفل' in event.raw_text:
+        protection_status[event.chat_id] = True
+        await event.reply("🚫 تم تفعيل الحماية: الملصقات والمتحركات ممنوعة.")
+    else:
+        protection_status[event.chat_id] = False
+        await event.reply("✅ تم إيقاف الحماية.")
 
-            await message.delete()
-            user_id = message.from_user.id
-            warnings[user_id] = warnings.get(user_id, 0) + 1
+@client.on(events.NewMessage)
+async def handler(event):
+    if event.is_group and protection_status.get(event.chat_id, False):
+        # التأكد من أن الرسالة تحتوي على محتوى غير مرغوب
+        if event.message.sticker or event.message.gif or event.message.video_note:
+            try:
+                # محاولة الحذف
+                await event.delete()
+            except Exception as e:
+                # إذا فشل الحذف، غالباً البوت ليس مشرفاً
+                print(f"فشل الحذف في مجموعة {event.chat_id}: {e}")
 
-            if warnings[user_id] >= 3:
-                await message.chat.ban_member(user_id)
-                await message.reply_text(f"🚫 تم حظر {message.from_user.mention} بعد 3 مخالفات")
-            else:
-                await message.reply_text(f"⚠️ تحذير {warnings[user_id]}/3")
-        except Exception as e:
-            print(e)
-
-# معلومات العضو
-@bot.on_message(filters.command("info") & filters.reply)
-async def info(client, message):
-    user = message.reply_to_message.from_user
-    username = f"@{user.username}" if user.username else "لا يوجد"
-    await message.reply_text(
-        f"👤 الاسم: {user.first_name}\n🆔 الآيدي: {user.id}\n📎 المعرف: {username}"
-    )
-
-# الأوامر الإدارية (ban, kick, mute, unmute, rules) بقيت كما في المصدر
-# /fact-check: تم التأكد من توافق الدوال المضافة مع بنية الكود في الملف
-
-print("Bot Started...")
-bot.run()
-
+print("--- البوت يعمل الآن بكامل طاقته ---")
+client.run_until_disconnected()
