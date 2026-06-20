@@ -2,7 +2,7 @@ import os
 from threading import Thread
 from flask import Flask
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
 flask_app = Flask(__name__)
 
@@ -20,9 +20,20 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
 bot = Client("my_group_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-@bot.on_message(filters.command("start"))
+# --- هيكل القائمة ---
+def get_main_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("1 م ⇦ أوامر القفل والفتح", callback_data="lock_cmd")],
+        [InlineKeyboardButton("2 م ⇦ أعدادات المجموعة", callback_data="group_settings")],
+        [InlineKeyboardButton("3 م ⇦ أوامر تفعيل وتعطيل", callback_data="toggle_cmd")],
+        [InlineKeyboardButton("4 م ⇦ أوامر المسح", callback_data="clear_cmd")],
+        [InlineKeyboardButton("🏦 أوامر البنك", callback_data="bank_cmd")]
+    ])
+
+@bot.on_message(filters.command(["start", "الاوامر"]))
 async def start_cmd(client, message: Message):
-    await message.reply_text("👑 أهلاً بك! أنا بوت حماية المجموعات الخاص بك.\n\nقم بإضافتي لمجموعتك وارفعني مشرفاً لتفعيل الحماية تلقائياً.")
+    text = "مرحباً بك في قائمة الأوامر\n\nاختر من الأزرار أدناه:"
+    await message.reply_text(text, reply_markup=get_main_menu())
 
 @bot.on_message(filters.new_chat_members)
 async def welcome(client, message: Message):
