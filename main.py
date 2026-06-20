@@ -1,51 +1,60 @@
 import os
-from threading import Thread
-from flask import Flask
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
-# إعداد Flask ليعمل البوت على Railway
-app = Flask(__name__)
-@app.route('/')
-def home():
-    return "Bot is running!"
+# --- الإعدادات ---
+bot = Client("my_group_bot", 
+             api_id=int(os.environ.get("API_ID", "39262198")), 
+             api_hash=os.environ.get("API_HASH", "0bbcdfdbfd468898ecffd0e5cc91334c"), 
+             bot_token=os.environ.get("BOT_TOKEN"))
 
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
+ADMINS = [218073323] 
 
-# إعدادات البوت
-API_ID = int(os.environ.get("API_ID", "39262198"))
-API_HASH = os.environ.get("API_HASH", "0bbcdfdbfd468898ecffd0e5cc91334c")
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+# --- 1. الحماية (حذف الوسائط المخالفة) ---
+@bot.on_message(filters.group & (filters.sticker | filters.animation))
+async def anti_media(client, message):
+    await message.delete()
 
-bot = Client("my_group_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+# --- 2. الترحيب التلقائي ---
+@bot.on_message(filters.group & filters.new_chat_members)
+async def welcome(client, message):
+    for member in message.new_chat_members:
+        await message.reply_text(f"أهلاً بك {member.mention} في مجموعتنا! نرجو الالتزام بالقوانين. 🌸")
 
-# دالة الأزرار
+# --- 3. أمر معلومات العضو (للتفاعل) ---
+@bot.on_message(filters.command("info") & filters.reply)
+async def get_info(client, message):
+    user = message.reply_to_message.from_user
+    info = f"👤 المعلومات:\nالاسم: {user.first_name}\nالآيدي: `{user.id}`\nالمعرف: @{user.username}"
+    await message.reply_text(info)
+
+# --- 4. أمر الحظر (للمدير) ---
+@bot.on_message(filters.command("ban") & filters.reply & filters.user(ADMINS))
+async def ban_user(client, message):
+    user_id = message.reply_to_message.from_user.id
+    await message.chat.ban_member(user_id)
+    await message.reply_text("🚫 تم حظر العضو المخالف.")
+
+# --- الأزرار ---
 def get_main_menu():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("1 م ⇦ أوامر القفل والفتح", callback_data="lock_cmd")],
-        [InlineKeyboardButton("2 م ⇦ أعدادات المجموعة", callback_data="group_settings")],
-        [InlineKeyboardButton("3 م ⇦ أوامر تفعيل وتعطيل", callback_data="toggle_cmd")]
+        [InlineKeyboardButton("🎮 الألعاب", callback_data="games_menu")],
+        [InlineKeyboardButton("🛡 أوامر الحماية", callback_data="shield_menu")]
     ])
 
-# أمر الـ start (بدون أزرار)
-@bot.on_message(filters.command("start"))
-async def start_cmd(client, message: Message):
-    await message.reply_text("👑 أهلاً بك! أنا بوت حماية المجموعات.\nاكتب 'الاوامر' لعرض القائمة.")
-
-# أمر الاوامر (بالأزرار)
 @bot.on_message(filters.command("الاوامر"))
 async def show_menu(client, message: Message):
-    await message.reply_text("مرحباً بك في قائمة الأوامر:", reply_markup=get_main_menu())
+    await message.reply_text("لوحة التحكم:", reply_markup=get_main_menu())
 
-# معالج الضغط على الأزرار
 @bot.on_callback_query()
 async def callback_handler(client, query):
-    if query.data == "lock_cmd":
-        await query.message.edit_text("🔒 قفل التعديل مفعل.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("رجوع 🔙", callback_data="back_main")]]))
+    if query.data == "games_menu":
+        await query.message.edit_text("الألعاب:\n1. XO (قيد التطوير)\n2. أسئلة ذكاء", 
+                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("رجوع 🔙", callback_data="back_main")]]))
+    elif query.data == "shield_menu":
+        await query.message.edit_text("الحماية مفعلة (حذف الملصقات والمتحركة).", 
+                                      reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("رجوع 🔙", callback_data="back_main")]]))
     elif query.data == "back_main":
-        await query.message.edit_text("مرحباً بك في قائمة الأوامر:", reply_markup=get_main_menu())
+        await query.message.edit_text("لوحة التحكم:", reply_markup=get_main_menu())
 
-if __name__ == "__main__":
-    Thread(target=run_flask).start()
-    bot.run()
+bot.run()
