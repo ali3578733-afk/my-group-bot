@@ -3,6 +3,7 @@ from threading import Thread
 from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+import Message, InlineKeyboardMarkup
 
 flask_app = Flask(__name__)
 
@@ -29,7 +30,6 @@ def get_main_menu():
         [InlineKeyboardButton("4 م ⇦ أوامر المسح", callback_data="clear_cmd")],
         [InlineKeyboardButton("🏦 أوامر البنك", callback_data="bank_cmd")]
     ])
-
 
 # --- الأوامر ---
 @bot.on_message(filters.command("start"))
