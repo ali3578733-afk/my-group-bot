@@ -30,6 +30,7 @@ def get_main_menu():
         [InlineKeyboardButton("🏦 أوامر البنك", callback_data="bank_cmd")]
     ])
 
+
 # --- الأوامر ---
 @bot.on_message(filters.command("start"))
 async def start_cmd(client, message: Message):
